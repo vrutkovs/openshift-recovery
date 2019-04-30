@@ -1,0 +1,70 @@
+apiVersion: v1
+kind: Pod 
+metadata:
+  name: etcd-signer
+  namespace: openshift-config
+  labels:
+    k8s-app: etcd
+spec:
+  containers:
+  - name: etcd-signer
+    image: "registry.svc.ci.openshift.org/openshift/origin-v4.0:kube-etcd-signer-server"
+    command:
+    - /bin/sh
+    - -c
+    - | 
+      #!/bin/sh
+      set -euox pipefail
+
+      source /run/etcd/environment
+
+      exec kube-etcd-signer-server serve \
+        --cacrt=/etc/ssl/etcd/client/tls.crt \
+        --cakey=/etc/ssl/etcd/client/tls.key \
+        --metric-cacrt=/etc/ssl/etcd/metric/tls.crt \
+        --metric-cakey=/etc/ssl/etcd/metric/tls.key \
+        --servcrt=/etc/ssl/etcd/system:etcd-server:${ETCD_DNS_NAME}.crt \
+        --servkey=/etc/ssl/etcd/system:etcd-server:${ETCD_DNS_NAME}.key \
+        --address=0.0.0.0:9943 \
+        --csrdir=/tmp \
+        --peercertdur=26280h \
+        --servercertdur=26280h \
+        --metriccertdur=26280h
+    resources:
+      requests:
+        memory: 600Mi
+        cpu: 300m
+    terminationMessagePolicy: FallbackToLogsOnError
+    volumeMounts:
+    - name: discovery
+      mountPath: /run/etcd/
+    - name: etcd-certs
+      mountPath: /etc/ssl/etcd/
+    - name: client-signer
+      mountPath: /etc/ssl/etcd/client
+    - name: metric-signer
+      mountPath: /etc/ssl/etcd/metric
+    ports:
+    - name: server
+      containerPort: 9943
+      protocol: TCP 
+    securityContext:
+      privileged: true
+  hostNetwork: true
+  priorityClassName: system-node-critical
+  tolerations:
+  - operator: "Exists"
+  restartPolicy: Always
+  volumes:
+  - name: etcd-certs
+    hostPath:
+      path: /etc/kubernetes/static-pod-resources/etcd-member
+  - name: discovery
+    hostPath:
+      path: /run/etcd
+  - name: client-signer
+    secret:
+      secretName: etcd-signer-client
+  - name: metric-signer
+    secret:
+      secretName: etcd-metric-signer
