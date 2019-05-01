@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-set -e
+#set -e
 
 if [[ $EUID -ne 0 ]]; then
   echo "This script must be run as root"
@@ -16,6 +16,7 @@ if [ "$1" == "" ]; then
     usage
 fi
 
+RECOVERY_SERVER_IP=$1
 ETCD_VERSION=v3.3.10
 ETCD_MANIFEST=etcd-member.yaml
 ETCDCTL=$ASSET_DIR/bin/etcdctl
@@ -28,29 +29,50 @@ MANIFEST_DIR="${CONFIG_FILE_DIR}/manifests"
 ETCD_MANIFEST="${MANIFEST_DIR}/etcd-member.yaml"
 ETCD_CONFIG=/etc/etcd/etcd.conf
 
-DISCOVERY_DOMAIN=$(grep -oP '(?<=discovery-srv ).* ' $ETCD_MANIFEST )
-CLUSTER_NAME=$(echo ${DISCOVERY_DOMAIN} | grep -oP '^.*?(?=\.)')
-
-CA=$(base64 ${CONFIG_FILE_DIR}/kube-apiserver-pod-1/configmaps/etcd-serving-ca/ca-bundle.crt | tr -d '\n')
-CERT=$(base64 $ETCD_CLIENT_DIR/tls.crt | tr -d '\n')
-KEY=$(base64 $ETCD_CLIENT_DIR/tls.key | tr -d '\n')
-
 init() {
   ASSET_BIN=${ASSET_DIR}/bin
   if [ ! -d "$ASSET_BIN" ]; then
     echo "Creating asset directory ${ASSET_DIR}"
     for dir in {bin,tmp,shared,backup,templates}
-    do  
+    do
       /usr/bin/mkdir -p ${ASSET_DIR}/${dir}
     done
-  fi  
+  fi
   dl_etcdctl $ETCD_VERSION
 }
 
+#backup etcd client certs
+backup_etcd_client_certs() {
+  echo "Trying to backup etcd client certs.."
+  if [ -f "$ASSET_DIR/backup/etcd-ca-bundle.crt" ] && [ -f "$ASSET_DIR/backup/etcd-client.crt" ] && [ -f "$ASSET_DIR/backup/etcd-client.key" ]; then
+     echo "etcd client certs already backed up and available $ASSET_DIR/backup/"
+     return 0
+  else
+    for i in {1..10}; do
+        SECRET_DIR="${CONFIG_FILE_DIR}/static-pod-resources/kube-apiserver-pod-${i}/secrets/etcd-client"
+        CONFIGMAP_DIR="${CONFIG_FILE_DIR}/static-pod-resources/kube-apiserver-pod-${i}/configmaps/etcd-serving-ca"
+        if [ -f "$CONFIGMAP_DIR/ca-bundle.crt" ] && [ -f "$SECRET_DIR/tls.crt" ] && [ -f "$SECRET_DIR/tls.key" ]; then
+          cp $CONFIGMAP_DIR/ca-bundle.crt $ASSET_DIR/backup/etcd-ca-bundle.crt
+          #cp $ASSET_DIR/backup/etcd-ca-bundle.crt ${CONFIG_FILE_DIR}/static-pod-resources/etcd-member
+          cp $SECRET_DIR/tls.crt $ASSET_DIR/backup/etcd-client.crt
+          #cp $ASSET_DIR/backup/etcd-client.crt ${CONFIG_FILE_DIR}/static-pod-resources/etcd-member
+          cp $SECRET_DIR/tls.key $ASSET_DIR/backup/etcd-client.key
+          #cp $ASSET_DIR/backup/etcd-client.key ${CONFIG_FILE_DIR}/static-pod-resources/etcd-member
+          break
+        else
+          echo "$SECRET_DIR does not contain etcd client certs, trying next source .."
+        fi
+    done
+   fi
+}
 # backup current etcd-member pod manifest
 backup_manifest() {
-  echo "Backing up ${MANIFEST_DIR}/${ETCD_MANIFEST} to ${ASSET_DIR}/backup/"
-  cp ${MANIFEST_DIR}/${ETCD_MANIFEST} ${ASSET_DIR}/backup/
+  if [ -e "${ASSET_DIR}/backup/etcd-member.yaml" ]; then
+    echo "etcd-member.yaml in found ${ASSET_DIR}/backup/"
+  else
+    echo "Backing up ${ETCD_MANIFEST} to ${ASSET_DIR}/backup/"
+    cp ${ETCD_MANIFEST} ${ASSET_DIR}/backup/
+  fi
 }
 
 # backup etcd.conf
@@ -81,14 +103,14 @@ stop_etcd() {
 
   if [ ! -d "$BACKUP_DIR" ]; then
     mkdir $BACKUP_DIR
-  fi  
+  fi
 
-  if [ -e "$MANIFEST" ]; then
-    mv $MANIFEST /etc/kubernetes/manifests-stopped/
-  fi  
+  if [ -e "$ETCD_MANIFEST" ]; then
+    mv $ETCD_MANIFEST /etc/kubernetes/manifests-stopped/
+  fi
 
   for name in {etcd-member,etcd-metric}
-  do  
+  do
     while [ "$(crictl pods -name $name | wc -l)" -gt 1  ]; do
       echo "Waiting for $name to stop"
       sleep 10
@@ -99,7 +121,10 @@ stop_etcd() {
 
 # generate a kubeconf like file for the cert agent to consume and contact signer.
 gen_config() {
-  set +e
+  CA=$(base64 $ASSET_DIR/backup/etcd-ca-bundle.crt | tr -d '\n')
+  CERT=$(base64 $ASSET_DIR/backup/etcd-client.crt | tr -d '\n')
+  KEY=$(base64 $ASSET_DIR/backup/etcd-client.key | tr -d '\n')
+
   read -r -d '' TEMPLATE << EOF
 clusters:
 - cluster:
@@ -119,8 +144,7 @@ users:
     client-certificate-data: ${CERT}
     client-key-data: ${KEY}
 EOF
-  echo "${TEMPLATE}" > ${CONFIG_FILE_DIR}/.recoveryconfig
-  set -e
+  echo "${TEMPLATE}" > ${CONFIG_FILE_DIR}/static-pod-resources/etcd-member/.recoveryconfig
 }
 
 # download and test etcdctl from upstream release assets
@@ -142,18 +166,18 @@ etcd_member_add() {
   HOSTNAME=$(hostname)
   HOSTDOMAIN=$(hostname -d)
   ETCD_NAME=etcd-member-${HOSTNAME}.${HOSTDOMAIN}
-  IP=$(curl s http://169.254.169.254/latest/meta-data/local-ipv4)
+  IP=$(curl -s http://169.254.169.254/latest/meta-data/local-ipv4)
 
   if [ -e $ASSET_DIR/backup/etcd/member/snap/db ]; then
     echo -e "Backup found removing exising data-dir"
     rm -rf $ETCD_DATA_DIR
-  fi 
+  fi
 
-  APPEND_CONF=$(env ETCDCTL_API=3 etcdctl member add $ETCD_NAME \
+  APPEND_CONF=$(env ETCDCTL_API=3 $ETCDCTL member add $ETCD_NAME \
     --peer-urls=https://${IP}:2380)
 
    if [ $? -eq 0 ]; then
-     echo "$APPEND_CONF" 
+     echo "$APPEND_CONF"
      echo "$APPEND_CONF" | sed -e '/cluster/,+2d'
      cat "$APPEND_CONF" >> $ETCD_CONFIG
    else
@@ -163,15 +187,20 @@ etcd_member_add() {
 
 start_etcd() {
   echo "Starting etcd.."
-  mv /etc/kubernetes/manifests-stopped/etcd-member.yaml $MANIFEST
+  mv /etc/kubernetes/manifests-stopped/etcd-member.yaml $MANIFEST_DIR
 }
 
 download_cert_recover_template() {
-  wget https://raw.githubusercontent.com/hexfusion/openshift-recovery/master/manifests/etcd-generate-certs.yaml.template -o $ASSET_DIR/templates
+  curl -s https://raw.githubusercontent.com/hexfusion/openshift-recovery/master/manifests/etcd-generate-certs.yaml.template -o $ASSET_DIR/templates/etcd-generate-certs.yaml.template
 }
 
 populate_template() {
-  TEMPLATE=$ASSET_DIR/templates/etcd-generate-certs.yaml.template 
+  echo "Populating template.."
+  DISCOVERY_DOMAIN=$(grep -oP '(?<=discovery-srv ).* ' $ASSET_DIR/backup/etcd-member.yaml )
+  CLUSTER_NAME=$(echo ${DISCOVERY_DOMAIN} | grep -oP '^.*?(?=\.)')
+
+  TEMPLATE=$ASSET_DIR/templates/etcd-generate-certs.yaml.template
+  FIND='__ETCD_DISCOVERY_DOMAIN__'
   cp $TEMPLATE $ASSET_DIR/tmp
   REPLACE="${DISCOVERY_DOMAIN}"
   sed -i "s@${FIND}@${REPLACE}@" $ASSET_DIR/tmp/etcd-generate-certs.yaml.template
@@ -180,25 +209,27 @@ populate_template() {
 
 start_cert_recover() {
   echo "Starting etcd client cert recovery agent.."
-  mv /etc/kubernetes/manifests-stopped/etcd-generate-certs $MANIFEST
+  mv /etc/kubernetes/manifests-stopped/etcd-generate-certs.yaml $MANIFEST_DIR
 }
 
 verify_certs() {
-  while [ "$(ls /etc/kubernetes/static-pod-resources/etcd-member/system\:etcd-* | wc -l)" -lt 6  ]; do
+  while [ "$(ls /etc/kubernetes/static-pod-resources/etcd-member/ | wc -l)" -lt 9  ]; do
     echo "Waiting for certs to generate.."
+    sleep 10
   done
 }
-
 
 init
 backup_manifest
 backup_etcd_conf
+backup_etcd_client_certs
 stop_etcd
 gen_config
 download_cert_recover_template
 populate_template
 start_cert_recover
 verify_certs
+start_cert_recover
 
 etcd_member_add
 start_etcd
