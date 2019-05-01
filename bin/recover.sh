@@ -18,7 +18,6 @@ fi
 
 RECOVERY_SERVER_IP=$1
 ETCD_VERSION=v3.3.10
-ETCD_MANIFEST=etcd-member.yaml
 ETCDCTL=$ASSET_DIR/bin/etcdctl
 ETCD_DATA_DIR=/var/lib/etcd
 
@@ -94,6 +93,7 @@ backup_certs() {
   echo "Backing up etcd certs.."
   cp /etc/kubernetes/static-pod-resources/etcd-member/system\:etcd-* $ASSET_DIR/backup/
 }
+
 # stop etcd by moving the manifest out of /etcd/kubernetes/manifests
 # we wait for all etcd containers to die.
 stop_etcd() {
@@ -173,8 +173,10 @@ etcd_member_add() {
     rm -rf $ETCD_DATA_DIR
   fi
 
-  APPEND_CONF=$(env ETCDCTL_API=3 $ETCDCTL member add $ETCD_NAME \
-    --peer-urls=https://${IP}:2380)
+  echo "Updating etcd membership.."
+
+  APPEND_CONF=$(env ETCDCTL_API=3 $ETCDCTL --cert $ASSET_DIR/backup/etcd-client.crt --key $ASSET_DIR/backup/etcd-client.key --cacert $ASSET_DIR/backup/etcd-ca-bundle.crt \
+    --endpoints ${RECOVERY_SERVER_IP}:2379 member add $ETCD_NAME --peer-urls=https://${IP}:2380)
 
    if [ $? -eq 0 ]; then
      echo "$APPEND_CONF"
@@ -182,6 +184,7 @@ etcd_member_add() {
      cat "$APPEND_CONF" >> $ETCD_CONFIG
    else
      echo "$APPEND_CONF"
+     exit 1
    fi
 }
 
@@ -219,6 +222,25 @@ verify_certs() {
   done
 }
 
+stop_cert_recover() {
+  BACKUP_DIR=/etc/kubernetes/manifests-stopped
+
+  echo "Stopping cert recover.."
+
+  if [ -f "${CONFIG_FILE_DIR}/manifests/etcd-generate-certs.yaml" ]; then
+    mv ${CONFIG_FILE_DIR}/manifests/etcd-generate-certs.yaml /etc/kubernetes/manifests-stopped/
+  fi
+
+  for name in {generate-env,generate-certs}
+  do
+    while [ "$(crictl pods -name $name | wc -l)" -gt 1  ]; do
+      echo "Waiting for $name to stop"
+      sleep 10
+    done
+  done
+}
+
+
 init
 backup_manifest
 backup_etcd_conf
@@ -229,7 +251,7 @@ download_cert_recover_template
 populate_template
 start_cert_recover
 verify_certs
-start_cert_recover
+stop_cert_recover
 
 etcd_member_add
 start_etcd
