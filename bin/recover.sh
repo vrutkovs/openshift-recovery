@@ -136,10 +136,10 @@ contexts:
     cluster: ${CLUSTER_NAME}
     user: kubelet
   name: kubelet
-current-context: recovery
+current-context: kubelet
 preferences: {}
 users:
-- name: recovery
+- name: kubelet
   user:
     client-certificate-data: ${CERT}
     client-key-data: ${KEY}
