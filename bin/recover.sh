@@ -17,23 +17,23 @@ if [ "$1" == "" ]; then
 fi
 
 RECOVERY_SERVER_IP=$1
-ETCD_VERSION=v3.3.10
-ETCD_DATA_DIR=/var/lib/etcd
 
 ASSET_DIR=./assets
 CONFIG_FILE_DIR=/etc/kubernetes
-ETCD_CLIENT_DIR="${CONFIG_FILE_DIR}/static-pod-resources/kube-apiserver-pod-1/secrets/etcd-client"
 MANIFEST_DIR="${CONFIG_FILE_DIR}/manifests"
+MANIFEST_STOPPED_DIR=/etc/kubernetes/manifests-stopped
+
 ETCD_MANIFEST="${MANIFEST_DIR}/etcd-member.yaml"
 ETCD_CONFIG=/etc/etcd/etcd.conf
 ETCDCTL=$ASSET_DIR/bin/etcdctl
+ETCD_VERSION=v3.3.10
+ETCD_DATA_DIR=/var/lib/etcd
 
 init() {
   ASSET_BIN=${ASSET_DIR}/bin
   if [ ! -d "$ASSET_BIN" ]; then
     echo "Creating asset directory ${ASSET_DIR}"
-    for dir in {bin,tmp,shared,backup,templates}
-    do
+    for dir in {bin,tmp,shared,backup,templates}; do
       /usr/bin/mkdir -p ${ASSET_DIR}/${dir}
     done
   fi
@@ -52,11 +52,8 @@ backup_etcd_client_certs() {
         CONFIGMAP_DIR="${CONFIG_FILE_DIR}/static-pod-resources/kube-apiserver-pod-${i}/configmaps/etcd-serving-ca"
         if [ -f "$CONFIGMAP_DIR/ca-bundle.crt" ] && [ -f "$SECRET_DIR/tls.crt" ] && [ -f "$SECRET_DIR/tls.key" ]; then
           cp $CONFIGMAP_DIR/ca-bundle.crt $ASSET_DIR/backup/etcd-ca-bundle.crt
-          #cp $ASSET_DIR/backup/etcd-ca-bundle.crt ${CONFIG_FILE_DIR}/static-pod-resources/etcd-member
           cp $SECRET_DIR/tls.crt $ASSET_DIR/backup/etcd-client.crt
-          #cp $ASSET_DIR/backup/etcd-client.crt ${CONFIG_FILE_DIR}/static-pod-resources/etcd-member
           cp $SECRET_DIR/tls.key $ASSET_DIR/backup/etcd-client.key
-          #cp $ASSET_DIR/backup/etcd-client.key ${CONFIG_FILE_DIR}/static-pod-resources/etcd-member
           break
         else
           echo "$SECRET_DIR does not contain etcd client certs, trying next source .."
@@ -97,16 +94,14 @@ backup_certs() {
 # stop etcd by moving the manifest out of /etcd/kubernetes/manifests
 # we wait for all etcd containers to die.
 stop_etcd() {
-  BACKUP_DIR=/etc/kubernetes/manifests-stopped
-
   echo "Stopping etcd.."
 
-  if [ ! -d "$BACKUP_DIR" ]; then
-    mkdir $BACKUP_DIR
+  if [ ! -d "$MANIFEST_STOPPED_DIR" ]; then
+    mkdir $MANIFEST_STOPPED_DIR
   fi
 
   if [ -e "$ETCD_MANIFEST" ]; then
-    mv $ETCD_MANIFEST /etc/kubernetes/manifests-stopped/
+    mv $ETCD_MANIFEST $MANIFEST_STOPPED_DIR
   fi
 
   for name in {etcd-member,etcd-metric}
@@ -176,7 +171,7 @@ etcd_member_add() {
   echo "Updating etcd membership.."
 
   APPEND_CONF=$(env ETCDCTL_API=3 $ETCDCTL --cert $ASSET_DIR/backup/etcd-client.crt --key $ASSET_DIR/backup/etcd-client.key --cacert $ASSET_DIR/backup/etcd-ca-bundle.crt \
-    --endpoints ${RECOVERY_SERVER_IP}:2379 member add $ETCD_NAME --peer-urls=https://${IP}:2380)
+    --endpoints ${RECOVERY_SERVER_IP}:2379 member add $ETCD_NAME --peer-urls=https://${ETCD_NAME}:2380)
 
    if [ $? -eq 0 ]; then
      echo "$APPEND_CONF"
@@ -190,7 +185,7 @@ etcd_member_add() {
 
 start_etcd() {
   echo "Starting etcd.."
-  mv /etc/kubernetes/manifests-stopped/etcd-member.yaml $MANIFEST_DIR
+  mv ${MANIFEST_STOPPED_DIR}/etcd-member.yaml $MANIFEST_DIR
 }
 
 download_cert_recover_template() {
@@ -199,12 +194,14 @@ download_cert_recover_template() {
 
 populate_template() {
   echo "Populating template.."
+
   DISCOVERY_DOMAIN=$(grep -oP '(?<=discovery-srv ).* ' $ASSET_DIR/backup/etcd-member.yaml )
   CLUSTER_NAME=$(echo ${DISCOVERY_DOMAIN} | grep -oP '^.*?(?=\.)')
-
   TEMPLATE=$ASSET_DIR/templates/etcd-generate-certs.yaml.template
-  FIND='__ETCD_DISCOVERY_DOMAIN__'
+
   cp $TEMPLATE $ASSET_DIR/tmp
+
+  FIND='__ETCD_DISCOVERY_DOMAIN__'
   REPLACE="${DISCOVERY_DOMAIN}"
   sed -i "s@${FIND}@${REPLACE}@" $ASSET_DIR/tmp/etcd-generate-certs.yaml.template
   mv $ASSET_DIR/tmp/etcd-generate-certs.yaml.template /etc/kubernetes/manifests-stopped/etcd-generate-certs.yaml
@@ -212,7 +209,7 @@ populate_template() {
 
 start_cert_recover() {
   echo "Starting etcd client cert recovery agent.."
-  mv /etc/kubernetes/manifests-stopped/etcd-generate-certs.yaml $MANIFEST_DIR
+  mv ${MANIFEST_STOPPED_DIR}/etcd-generate-certs.yaml $MANIFEST_DIR
 }
 
 verify_certs() {
@@ -223,16 +220,13 @@ verify_certs() {
 }
 
 stop_cert_recover() {
-  BACKUP_DIR=/etc/kubernetes/manifests-stopped
-
   echo "Stopping cert recover.."
 
   if [ -f "${CONFIG_FILE_DIR}/manifests/etcd-generate-certs.yaml" ]; then
-    mv ${CONFIG_FILE_DIR}/manifests/etcd-generate-certs.yaml /etc/kubernetes/manifests-stopped/
+    mv ${CONFIG_FILE_DIR}/manifests/etcd-generate-certs.yaml $MANIFEST_STOPPED_DIR
   fi
 
-  for name in {generate-env,generate-certs}
-  do
+  for name in {generate-env,generate-certs}; do
     while [ "$(crictl pods -name $name | wc -l)" -gt 1  ]; do
       echo "Waiting for $name to stop"
       sleep 10
