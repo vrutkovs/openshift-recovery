@@ -18,7 +18,6 @@ fi
 
 RECOVERY_SERVER_IP=$1
 ETCD_VERSION=v3.3.10
-ETCDCTL=$ASSET_DIR/bin/etcdctl
 ETCD_DATA_DIR=/var/lib/etcd
 
 ASSET_DIR=./assets
@@ -27,6 +26,7 @@ ETCD_CLIENT_DIR="${CONFIG_FILE_DIR}/static-pod-resources/kube-apiserver-pod-1/se
 MANIFEST_DIR="${CONFIG_FILE_DIR}/manifests"
 ETCD_MANIFEST="${MANIFEST_DIR}/etcd-member.yaml"
 ETCD_CONFIG=/etc/etcd/etcd.conf
+ETCDCTL=$ASSET_DIR/bin/etcdctl
 
 init() {
   ASSET_BIN=${ASSET_DIR}/bin
