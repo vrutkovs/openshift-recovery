@@ -181,7 +181,7 @@ etcd_member_add() {
    if [ $? -eq 0 ]; then
      echo "$APPEND_CONF"
      echo "$APPEND_CONF" | sed -e '/cluster/,+2d'
-     cat "$APPEND_CONF" >> $ETCD_CONFIG
+     echo "\n\n$APPEND_CONF" >> $ETCD_CONFIG
    else
      echo "$APPEND_CONF"
      exit 1
