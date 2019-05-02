@@ -72,8 +72,12 @@ stop_etcd() {
 }
 
 backup_data_dir() {
-  echo "Backing up etcd data-dir.."
-  cp -rap ${ETCD_DATA_DIR}  $ASSET_DIR/backup/
+  if [ -f "$ASSET_DIR/backup/etcd/member/snap/db" ]; then
+    echo "etcd data-dir backup found $ASSET_DIR/backup/etcd.."
+  else
+    echo "Backing up etcd data-dir.."
+    cp -rap ${ETCD_DATA_DIR}  $ASSET_DIR/backup/
+  fi
 }
 
 restore_snapshot() {
@@ -94,7 +98,7 @@ restore_snapshot() {
 
   env ETCDCTL_API=3 ${ETCDCTL} snapshot restore $ASSET_DIR/backup/etcd/member/snap/db \
     --name $ETCD_NAME \
-    --initial-cluster ${ETCD_NAME}=https://${ETCD_IPV4_ADDRESS}:2380 \
+    --initial-cluster ${ETCD_NAME}=https://${ETCD_DNS_NAME}:2380 \
     --initial-cluster-token etcd-cluster-1 \
     --skip-hash-check=true \
     --initial-advertise-peer-urls https://${ETCD_IPV4_ADDRESS}:2380 \
