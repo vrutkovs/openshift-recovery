@@ -1,11 +1,6 @@
 #!/usr/bin/env bash
 
-#set -e
-
-#if [[ $EUID -ne 0 ]]; then
-#  echo "This script must be run as root"
-#  exit 1
-#fi
+set -e
 
 usage () {
     echo 'Master hostname required: ./script.sh $MASTER_HOSTNAME'
