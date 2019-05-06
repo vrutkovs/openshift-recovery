@@ -9,6 +9,8 @@ spec:
   containers:
   - name: etcd-signer
     image: "registry.svc.ci.openshift.org/openshift/origin-v4.0:kube-etcd-signer-server"
+    nodeSelector:
+      kubernetes.io/hostname: "__MASTER_HOSTNAME__"
     command:
     - /bin/sh
     - -c
