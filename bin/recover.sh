@@ -253,6 +253,7 @@ backup_manifest
 backup_etcd_conf
 backup_etcd_client_certs
 stop_etcd
+backup_data_dir
 gen_config
 download_cert_recover_template
 populate_template
