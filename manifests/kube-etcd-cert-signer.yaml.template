@@ -8,7 +8,7 @@ metadata:
 spec:
   containers:
   - name: etcd-signer
-    image: "registry.svc.ci.openshift.org/openshift/origin-v4.1:kube-etcd-signer-server"
+    image: "registry.svc.ci.openshift.org/openshift/origin-v4.0:kube-etcd-signer-server"
     command:
     - /bin/sh
     - -c
