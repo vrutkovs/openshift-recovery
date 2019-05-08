@@ -8,7 +8,7 @@ metadata:
 spec:
   containers:
   - name: generate-env
-    image: "registry.svc.ci.openshift.org/openshift/origin-v4.0:setup-etcd-environment"
+    image: "registry.svc.ci.openshift.org/openshift/origin-v4.1:setup-etcd-environment"
     args:
     - "run"
     - "--discovery-srv=__ETCD_DISCOVERY_DOMAIN__"

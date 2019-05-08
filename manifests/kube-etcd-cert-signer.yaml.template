@@ -8,7 +8,7 @@ metadata:
 spec:
   containers:
   - name: etcd-signer
-    image: "registry.svc.ci.openshift.org/openshift/origin-v4.0:kube-etcd-signer-server"
+    image: "registry.svc.ci.openshift.org/openshift/origin-v4.1:kube-etcd-signer-server"
     command:
     - /bin/sh
     - -c
@@ -19,10 +19,10 @@ spec:
       source /run/etcd/environment
 
       exec kube-etcd-signer-server serve \
-        --cacrt=/etc/ssl/etcd/client/tls.crt \
-        --cakey=/etc/ssl/etcd/client/tls.key \
-        --metric-cacrt=/etc/ssl/etcd/metric/tls.crt \
-        --metric-cakey=/etc/ssl/etcd/metric/tls.key \
+        --cacrt=/etc/ssl/etcd/signer/tls.crt \
+        --cakey=/etc/ssl/etcd/signer/tls.key \
+        --metric-cacrt=/etc/ssl/etcd/metric-signer/tls.crt \
+        --metric-cakey=/etc/ssl/etcd/metric-signer/tls.key \
         --servcrt=/etc/ssl/etcd/system:etcd-server:${ETCD_DNS_NAME}.crt \
         --servkey=/etc/ssl/etcd/system:etcd-server:${ETCD_DNS_NAME}.key \
         --address=0.0.0.0:9943 \
@@ -40,10 +40,10 @@ spec:
       mountPath: /run/etcd/
     - name: etcd-certs
       mountPath: /etc/ssl/etcd/
-    - name: client-signer
-      mountPath: /etc/ssl/etcd/client
-    - name: metric-signer
-      mountPath: /etc/ssl/etcd/metric
+    - name: etcd-signer
+      mountPath: /etc/ssl/etcd/signer
+    - name: etcd-metric-signer
+      mountPath: /etc/ssl/etcd/metric-signer
     ports:
     - name: server
       containerPort: 9943
@@ -64,9 +64,9 @@ spec:
   - name: discovery
     hostPath:
       path: /run/etcd
-  - name: client-signer
+  - name: etcd-signer
     secret:
-      secretName: etcd-signer-client
-  - name: metric-signer
+      secretName: etcd-signer
+  - name: etcd-metric-signer
     secret:
       secretName: etcd-metric-signer

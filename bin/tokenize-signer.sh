@@ -3,7 +3,7 @@
 set -e
 
 usage () {
-    echo 'Master hostname required: ./script.sh $MASTER_HOSTNAME'
+    echo 'Master hostname required: ./script.sh ip-10-0-134-97'
     exit
 }
 
