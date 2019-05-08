@@ -114,6 +114,13 @@ stop_etcd() {
 }
 
 
+patch_manifest() {
+  echo "Patching etcd-member manifest.."
+  cp $ASSET_DIR/backup/etcd-member.yaml $ASSET_DIR/tmp/etcd-member.yaml.template
+  sed -i /' '--discovery-srv/d $ASSET_DIR/tmp/etcd-member.yaml.template
+  mv $ASSET_DIR/tmp/etcd-member.yaml.template $MANIFEST_STOPPED_DIR/etcd-member.yaml
+}
+
 # generate a kubeconf like file for the cert agent to consume and contact signer.
 gen_config() {
   CA=$(base64 $ASSET_DIR/backup/etcd-ca-bundle.crt | tr -d '\n')
@@ -158,6 +165,7 @@ dl_etcdctl() {
 
 # add member cluster
 etcd_member_add() {
+  source  /run/etcd/environment
   HOSTNAME=$(hostname)
   HOSTDOMAIN=$(hostname -d)
   ETCD_NAME=etcd-member-${HOSTNAME}.${HOSTDOMAIN}
@@ -170,15 +178,15 @@ etcd_member_add() {
 
   echo "Updating etcd membership.."
 
-  APPEND_CONF=$(env ETCDCTL_API=3 $ETCDCTL --cert $ASSET_DIR/backup/etcd-client.crt --key $ASSET_DIR/backup/etcd-client.key --cacert $ASSET_DIR/backup/etcd-ca-bundle.crt \
-    --endpoints ${RECOVERY_SERVER_IP}:2379 member add $ETCD_NAME --peer-urls=https://${ETCD_NAME}:2380)
+  RESPONSE=$(env ETCDCTL_API=3 $ETCDCTL --cert $ASSET_DIR/backup/etcd-client.crt --key $ASSET_DIR/backup/etcd-client.key --cacert $ASSET_DIR/backup/etcd-ca-bundle.crt \
+    --endpoints ${RECOVERY_SERVER_IP}:2379 member add $ETCD_NAME --peer-urls=https://${ETCD_DNS_NAME}:2380)
 
    if [ $? -eq 0 ]; then
-     echo "$APPEND_CONF"
-     echo "$APPEND_CONF" | sed -e '/cluster/,+2d'
-     echo "\n\n$APPEND_CONF" >> $ETCD_CONFIG
+     echo "$RESPONSE"
+     APPEND_CONF=$(echo "$RESPONSE" | sed -e '1,2d')
+     echo -e "\n\n#[recover]\n$APPEND_CONF" >> $ETCD_CONFIG
    else
-     echo "$APPEND_CONF"
+     echo "$RESPONSE"
      exit 1
    fi
 }
@@ -198,6 +206,11 @@ populate_template() {
   DISCOVERY_DOMAIN=$(grep -oP '(?<=discovery-srv ).* ' $ASSET_DIR/backup/etcd-member.yaml )
   CLUSTER_NAME=$(echo ${DISCOVERY_DOMAIN} | grep -oP '^.*?(?=\.)')
   TEMPLATE=$ASSET_DIR/templates/etcd-generate-certs.yaml.template
+
+  if [ -z "$DISCOVERY_DOMAIN" ]; then
+    echo "Discovery domain can not be extracted from $ASSET_DIR/backup/etcd-member.yaml"
+    return 1
+  fi
 
   cp $TEMPLATE $ASSET_DIR/tmp
 
@@ -247,5 +260,6 @@ start_cert_recover
 verify_certs
 stop_cert_recover
 
+patch_manifest
 etcd_member_add
 start_etcd
