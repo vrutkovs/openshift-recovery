@@ -8,6 +8,7 @@ if [[ $EUID -ne 0 ]]; then
 fi
 
 ASSET_DIR=./assets
+SNAPSHOT_FILE=$ASSET_DIR/backup/etcd/member/snap/db
 ETCD_VERSION=v3.3.10
 ETCD_MANIFEST=etcd-member.yaml
 ETCDCTL=$ASSET_DIR/bin/etcdctl
@@ -15,11 +16,15 @@ ETCD_DATA_DIR=/var/lib/etcd
 MANIFEST_DIR=/etc/kubernetes/manifests
 MANIFEST=/etc/kubernetes/manifests/${ETCD_MANIFEST}
 
+if [ "$1" != "" ]; then
+  SNAPSHOT_FILE="$1"
+fi
+
 init() {
   ASSET_BIN=${ASSET_DIR}/bin
   if [ ! -d "$ASSET_BIN" ]; then
     echo "Creating asset directory ${ASSET_DIR}"
-    for dir in {bin,tmp,shared,backup}
+    for dir in {bin,tmp,shared,backup,restore}
     do
       /usr/bin/mkdir -p ${ASSET_DIR}/${dir}
     done
@@ -77,26 +82,25 @@ backup_data_dir() {
   else
     echo "Backing up etcd data-dir.."
     cp -rap ${ETCD_DATA_DIR}  $ASSET_DIR/backup/
+    if [ ! -f "$SNAPSHOT_FILE" ]; then
+      echo "Snapshot file not found: $SNAPSHOT_FILE."
+      exit 1
+    fi
   fi
 }
 
 restore_snapshot() {
-  IP=$(curl s http://169.254.169.254/latest/meta-data/local-ipv4)
-  HOSTNAME=$(dig +noall +answer -x $IP | awk '{ print $5 }' | sed 's/\.$//g')
-  ETCD_NAME=etcd-member-${HOSTNAME}
+  HOSTNAME=$(hostname)
+  HOSTDOMAIN=$(hostname -d)
+  ETCD_NAME=etcd-member-${HOSTNAME}.${HOSTDOMAIN}
 
   source /run/etcd/environment
-
-  if [ -e $ASSET_DIR/backup/etcd/member/snap/db ]; then
-    echo -e "Backup found removing exising data-dir"
-    rm -rf $ETCD_DATA_DIR
-  fi
 
   sleep 2
 
   echo "Restoring etcd member $ETCD_NAME from snapshot.."
 
-  env ETCDCTL_API=3 ${ETCDCTL} snapshot restore $ASSET_DIR/backup/etcd/member/snap/db \
+  env ETCDCTL_API=3 ${ETCDCTL} snapshot restore $SNAPSHOT_FILE \
     --name $ETCD_NAME \
     --initial-cluster ${ETCD_NAME}=https://${ETCD_DNS_NAME}:2380 \
     --initial-cluster-token etcd-cluster-1 \

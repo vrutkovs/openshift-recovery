@@ -169,7 +169,6 @@ etcd_member_add() {
   HOSTNAME=$(hostname)
   HOSTDOMAIN=$(hostname -d)
   ETCD_NAME=etcd-member-${HOSTNAME}.${HOSTDOMAIN}
-  IP=$(curl -s http://169.254.169.254/latest/meta-data/local-ipv4)
 
   if [ -e $ASSET_DIR/backup/etcd/member/snap/db ]; then
     echo -e "Backup found removing exising data-dir"
