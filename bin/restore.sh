@@ -79,14 +79,17 @@ stop_etcd() {
 backup_data_dir() {
   if [ -f "$ASSET_DIR/backup/etcd/member/snap/db" ]; then
     echo "etcd data-dir backup found $ASSET_DIR/backup/etcd.."
+  elif [ ! -f "${ETCD_DATA_DIR}/member/snap/db" ]; then
+    echo "Local etcd snapshot file not found, backup skipped.."
   else
     echo "Backing up etcd data-dir.."
     cp -rap ${ETCD_DATA_DIR}  $ASSET_DIR/backup/
-    if [ ! -f "$SNAPSHOT_FILE" ]; then
-      echo "Snapshot file not found: $SNAPSHOT_FILE."
-      exit 1
-    fi
   fi
+}
+
+remove_data_dir() {
+  echo "Removing etcd data-dir ${ETCD_DATA_DIR}"
+  rm -rf ${ETCD_DATA_DIR}
 }
 
 restore_snapshot() {
@@ -95,6 +98,11 @@ restore_snapshot() {
   ETCD_NAME=etcd-member-${HOSTNAME}.${HOSTDOMAIN}
 
   source /run/etcd/environment
+
+  if [ ! -f "$SNAPSHOT_FILE" ]; then
+    echo "Snapshot file not found, restore failed: $SNAPSHOT_FILE."
+    exit 1
+  fi
 
   sleep 2
 
@@ -116,7 +124,8 @@ start_etcd() {
 
 init
 backup_manifest
-backup_data_dir
 stop_etcd
+backup_data_dir
+remove_data_dir
 restore_snapshot
 start_etcd
