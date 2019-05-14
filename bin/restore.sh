@@ -20,7 +20,8 @@ if [ "$1" != "" ]; then
   SNAPSHOT_FILE="$1"
 fi
 
-source "$ASSET_DIR/bin/recovery-tools"
+# TODO fix path this is for testing
+source "./bin/recovery-tools"
 
 function run {
   for f in init \
