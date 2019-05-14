@@ -216,7 +216,7 @@ download_cert_recover_template() {
 populate_template() {
   echo "Populating template.."
 
-  DISCOVERY_DOMAIN=$(grep -oP '(?<=discovery-srv ).* ' $ASSET_DIR/backup/etcd-member.yaml )
+  DISCOVERY_DOMAIN=$(grep -oP '(?<=discovery-srv=).*[^"]' $ASSET_DIR/backup/etcd-member.yaml )
   CLUSTER_NAME=$(echo ${DISCOVERY_DOMAIN} | grep -oP '^.*?(?=\.)')
   TEMPLATE=$ASSET_DIR/templates/etcd-generate-certs.yaml.template
 
