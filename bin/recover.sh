@@ -28,7 +28,7 @@ ETCD_CONFIG=/etc/etcd/etcd.conf
 ETCDCTL=$ASSET_DIR/bin/etcdctl
 ETCD_VERSION=v3.3.10
 ETCD_DATA_DIR=/var/lib/etcd
-ETCD_STATIC_RESOURCES="${MANIFEST_DIR}/static-pod-resources/etcd-member"
+ETCD_STATIC_RESOURCES="${CONFIG_FILE_DIR}/static-pod-resources/etcd-member"
 
 init() {
   ASSET_BIN=${ASSET_DIR}/bin
