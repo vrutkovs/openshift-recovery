@@ -9,12 +9,12 @@ fi
 
 ASSET_DIR=./assets
 SNAPSHOT_FILE="${ASSET_DIR}/backup/etcd/member/snap/db"
-ETCD_VERSION=v3.3.10
-ETCDCTL="${ASSET_DIR}/bin/etcdctl"
-ETCD_DATA_DIR=/var/lib/etcd
 CONFIG_FILE_DIR=/etc/kubernetes
 MANIFEST_DIR="${CONFIG_FILE_DIR}/manifests"
 MANIFEST_STOPPED_DIR="${CONFIG_FILE_DIR}/manifests-stopped"
+ETCD_VERSION=v3.3.10
+ETCDCTL="${ASSET_DIR}/bin/etcdctl"
+ETCD_DATA_DIR=/var/lib/etcd
 ETCD_MANIFEST="${MANIFEST_DIR}/etcd-member.yaml"
 ETCD_STATIC_RESOURCES="${CONFIG_FILE_DIR}/static-pod-resources/etcd-member"
 
