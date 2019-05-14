@@ -32,6 +32,7 @@ function run {
     restore_snapshot \
     start_etcd \
       ; do
+    echo "${f}"
     "${f}"
   done
 }
