@@ -10,11 +10,10 @@ fi
 ASSET_DIR=./assets
 SNAPSHOT_FILE=$ASSET_DIR/backup/etcd/member/snap/db
 ETCD_VERSION=v3.3.10
-ETCD_MANIFEST=etcd-member.yaml
 ETCDCTL=$ASSET_DIR/bin/etcdctl
 ETCD_DATA_DIR=/var/lib/etcd
 MANIFEST_DIR=/etc/kubernetes/manifests
-MANIFEST=/etc/kubernetes/manifests/${ETCD_MANIFEST}
+ETCD_MANIFEST="${MANIFEST_DIR}/etcd-member.yaml"
 
 if [ "$1" != "" ]; then
   SNAPSHOT_FILE="$1"
