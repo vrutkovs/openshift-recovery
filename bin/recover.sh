@@ -28,6 +28,7 @@ ETCD_CONFIG=/etc/etcd/etcd.conf
 ETCDCTL=$ASSET_DIR/bin/etcdctl
 ETCD_VERSION=v3.3.10
 ETCD_DATA_DIR=/var/lib/etcd
+ETCD_STATIC_RESOURCES="${MANIFEST_DIR}/static-pod-resources/etcd-member"
 
 init() {
   ASSET_BIN=${ASSET_DIR}/bin
@@ -82,13 +83,27 @@ backup_etcd_conf() {
 }
 
 backup_data_dir() {
-  echo "Backing up etcd data-dir.."
-  cp -rap ${ETCD_DATA_DIR}  $ASSET_DIR/backup/
+  if [ -f "$ASSET_DIR/backup/etcd/member/snap/db" ]; then
+    echo "etcd data-dir backup found $ASSET_DIR/backup/etcd.."
+  elif [ ! -f "${ETCD_DATA_DIR}/member/snap/db" ]; then
+    echo "Local etcd snapshot file not found, backup skipped.."
+  else
+    echo "Backing up etcd data-dir.."
+    cp -rap ${ETCD_DATA_DIR} $ASSET_DIR/backup/
+  fi
 }
 
+# backup etcd peer, server and metric certs
 backup_certs() {
-  echo "Backing up etcd certs.."
-  cp /etc/kubernetes/static-pod-resources/etcd-member/system\:etcd-* $ASSET_DIR/backup/
+  COUNT=$(ls $ASSET_DIR/backup/system\:etcd-* 2>/dev/null | wc -l)
+  if [ "$COUNT" -gt 1 ]; then
+    echo "etcd TLS certificate backups found in $ASSET_DIR/backup.."
+  elif [ "$COUNT" -eq 0 ]; then
+    echo "etcd TLS certificates not found, backup skipped.."
+  else
+    echo "Backing up etcd certificates.."
+    cp $ETCD_STATIC_RESOURCES/system\:etcd-* $ASSET_DIR/backup/
+  fi
 }
 
 # stop etcd by moving the manifest out of /etcd/kubernetes/manifests
@@ -112,7 +127,6 @@ stop_etcd() {
     done
   done
 }
-
 
 patch_manifest() {
   echo "Patching etcd-member manifest.."
@@ -146,7 +160,7 @@ users:
     client-certificate-data: ${CERT}
     client-key-data: ${KEY}
 EOF
-  echo "${TEMPLATE}" > ${CONFIG_FILE_DIR}/static-pod-resources/etcd-member/.recoveryconfig
+  echo "${TEMPLATE}" > $ETCD_STATIC_RESOURCES/.recoveryconfig
 }
 
 # download and test etcdctl from upstream release assets
@@ -225,7 +239,7 @@ start_cert_recover() {
 }
 
 verify_certs() {
-  while [ "$(ls /etc/kubernetes/static-pod-resources/etcd-member/ | wc -l)" -lt 9  ]; do
+  while [ "$(ls $ETCD_STATIC_RESOURCES | wc -l)" -lt 9  ]; do
     echo "Waiting for certs to generate.."
     sleep 10
   done
