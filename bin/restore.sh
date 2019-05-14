@@ -12,10 +12,10 @@ SNAPSHOT_FILE="${ASSET_DIR}/backup/etcd/member/snap/db"
 ETCD_VERSION=v3.3.10
 ETCDCTL="${ASSET_DIR}/bin/etcdctl"
 ETCD_DATA_DIR=/var/lib/etcd
-ETCD_MANIFEST="${MANIFEST_DIR}/etcd-member.yaml"
 CONFIG_FILE_DIR=/etc/kubernetes
 MANIFEST_DIR="${CONFIG_FILE_DIR}/manifests"
 MANIFEST_STOPPED_DIR="${CONFIG_FILE_DIR}/manifests-stopped"
+ETCD_MANIFEST="${MANIFEST_DIR}/etcd-member.yaml"
 
 if [ "$1" != "" ]; then
   SNAPSHOT_FILE="$1"
