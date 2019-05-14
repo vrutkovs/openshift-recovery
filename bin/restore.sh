@@ -8,12 +8,13 @@ if [[ $EUID -ne 0 ]]; then
 fi
 
 ASSET_DIR=./assets
-SNAPSHOT_FILE=$ASSET_DIR/backup/etcd/member/snap/db
+SNAPSHOT_FILE="${ASSET_DIR}/backup/etcd/member/snap/db"
 ETCD_VERSION=v3.3.10
-ETCDCTL=$ASSET_DIR/bin/etcdctl
+ETCDCTL="${ASSET_DIR}/bin/etcdctl"
 ETCD_DATA_DIR=/var/lib/etcd
-MANIFEST_DIR=/etc/kubernetes/manifests
 ETCD_MANIFEST="${MANIFEST_DIR}/etcd-member.yaml"
+CONFIG_FILE_DIR=/etc/kubernetes
+MANIFEST_DIR="${CONFIG_FILE_DIR}/manifests"
 
 if [ "$1" != "" ]; then
   SNAPSHOT_FILE="$1"
