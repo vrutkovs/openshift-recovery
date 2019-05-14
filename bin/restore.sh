@@ -16,6 +16,7 @@ CONFIG_FILE_DIR=/etc/kubernetes
 MANIFEST_DIR="${CONFIG_FILE_DIR}/manifests"
 MANIFEST_STOPPED_DIR="${CONFIG_FILE_DIR}/manifests-stopped"
 ETCD_MANIFEST="${MANIFEST_DIR}/etcd-member.yaml"
+ETCD_STATIC_RESOURCES="${CONFIG_FILE_DIR}/static-pod-resources/etcd-member"
 
 if [ "$1" != "" ]; then
   SNAPSHOT_FILE="$1"
