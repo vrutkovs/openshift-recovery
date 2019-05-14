@@ -15,6 +15,7 @@ ETCD_DATA_DIR=/var/lib/etcd
 ETCD_MANIFEST="${MANIFEST_DIR}/etcd-member.yaml"
 CONFIG_FILE_DIR=/etc/kubernetes
 MANIFEST_DIR="${CONFIG_FILE_DIR}/manifests"
+MANIFEST_STOPPED_DIR="${CONFIG_FILE_DIR}/manifests-stopped"
 
 if [ "$1" != "" ]; then
   SNAPSHOT_FILE="$1"
