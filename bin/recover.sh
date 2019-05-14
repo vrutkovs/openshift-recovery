@@ -46,7 +46,6 @@ backup_etcd_client_certs() {
   echo "Trying to backup etcd client certs.."
   if [ -f "$ASSET_DIR/backup/etcd-ca-bundle.crt" ] && [ -f "$ASSET_DIR/backup/etcd-client.crt" ] && [ -f "$ASSET_DIR/backup/etcd-client.key" ]; then
      echo "etcd client certs already backed up and available $ASSET_DIR/backup/"
-     return 0
   else
     for i in {1..10}; do
         SECRET_DIR="${CONFIG_FILE_DIR}/static-pod-resources/kube-apiserver-pod-${i}/secrets/etcd-client"
@@ -62,6 +61,7 @@ backup_etcd_client_certs() {
     done
    fi
 }
+ 
 # backup current etcd-member pod manifest
 backup_manifest() {
   if [ -e "${ASSET_DIR}/backup/etcd-member.yaml" ]; then
@@ -222,7 +222,7 @@ populate_template() {
 
   if [ -z "$DISCOVERY_DOMAIN" ]; then
     echo "Discovery domain can not be extracted from $ASSET_DIR/backup/etcd-member.yaml"
-    return 1
+    exit 1
   fi
 
   cp $TEMPLATE $ASSET_DIR/tmp
