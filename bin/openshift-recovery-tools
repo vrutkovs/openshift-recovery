@@ -103,7 +103,7 @@ stop_etcd() {
 
   for name in {etcd-member,etcd-metric}
   do
-    while [ "$(crictl pods -name $name | wc -l)" -gt 1  ]; do
+    while [ ! -z "$(crictl pods -name $name --state Ready -q)" ]; do
       echo "Waiting for $name to stop"
       sleep 10
     done
@@ -267,7 +267,7 @@ stop_cert_recover() {
   fi
 
   for name in {generate-env,generate-certs}; do
-    while [ "$(crictl pods -name $name | wc -l)" -gt 1  ]; do
+    while [ ! -z "$(crictl pods -name $name --state Ready -q)" ]; do
       echo "Waiting for $name to stop"
       sleep 10
     done
