@@ -44,7 +44,7 @@ ETCD_STATIC_RESOURCES="${CONFIG_FILE_DIR}/static-pod-resources/etcd-member"
 SHARED=/usr/local/shared/openshift-recovery
 TEMPLATE="$SHARED/templates/etcd-generate-certs.yaml.template"
 
-source "/usr/local/bin/openshift-recovery-tools"
+source "/usr/local/bin/recovery-tools"
 
 function run {
   init
