@@ -2,11 +2,12 @@
 
 set -o errexit
 set -o pipefail
+set -x
 
 # example
 # export SETUP_ETCD_ENVIRONMENT=$(oc adm release info --image-for setup-etcd-environment --registry-config=./config.json)
 # export KUBE_CLIENT_AGENT=$(oc adm release info --image-for kube-client-agent --registry-config=./config.json)
-# ./etcd-member-recover.sh 192.168.1.100 
+# ./etcd-member-recover.sh 192.168.1.100
 
 if [[ $EUID -ne 0 ]]; then
   echo "This script must be run as root"

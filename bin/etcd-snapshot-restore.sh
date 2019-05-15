@@ -2,6 +2,7 @@
 
 set -o errexit
 set -o pipefail
+set -x
 
 # example
 # etcd-snapshot-restore.sh $path-to-snapshot
