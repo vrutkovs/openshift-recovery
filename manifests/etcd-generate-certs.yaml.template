@@ -8,7 +8,7 @@ metadata:
 spec:
   containers:
   - name: generate-env
-    image: "registry.svc.ci.openshift.org/openshift/origin-v4.1:setup-etcd-environment"
+    image: "__SETUP_ETCD_ENVIRONMENT__"
     args:
     - "run"
     - "--discovery-srv=__ETCD_DISCOVERY_DOMAIN__"
@@ -18,7 +18,7 @@ spec:
     - name: discovery
       mountPath: /run/etcd/
   - name: generate-certs
-    image: "registry.svc.ci.openshift.org/openshift/origin-v4.0:kube-client-agent"
+    image: "__KUBE_CLIENT_AGENT__"
     command:
     - /bin/sh
     - -c

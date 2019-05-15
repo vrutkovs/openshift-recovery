@@ -1,9 +1,16 @@
 #!/usr/bin/env bash
 
-set -e
+set -o errexit
+set -o pipefail
+
+# example
+# export KUBE_ETCD_SIGNER_SERVER=$(oc adm release info --image-for kube-etcd-signer-server --registry-config=./config.json)
+# ./tokenize-signer.sh ip-10-0-134-97 
+
+: ${KUBE_ETCD_SIGNER_SERVER:?"Need to set KUBE_ETCD_SIGNER_SERVER"}
 
 usage () {
-    echo 'Master hostname required: ./script.sh ip-10-0-134-97'
+    echo 'Hostname required: KUBE_ETCD_SIGNER_SERVER=$pullspec ./tokenize-signer.sh ip-10-0-134-97'
     exit
 }
 
@@ -14,41 +21,12 @@ fi
 MASTER_HOSTNAME=$1
 
 ASSET_DIR=./assets
+SHARED=/usr/local/shared/openshift-recovery
+TEMPLATE=$SHARED/template/kube-etcd-cert-signer.yaml.template
+TEMPLATE_TMP=$ASSET_DIR/tmp/kube-etcd-cert-signer.yaml.stage1
 
-init() {
-ASSET_BIN=${ASSET_DIR}/bin
-  echo "Creating asset directory ${ASSET_DIR}"
-  for dir in {bin,tmp,shared,backup,templates,manifests}; do
-    if [ ! -e ${ASSET_DIR}/${dir} ]; then
-      /usr/bin/mkdir -p ${ASSET_DIR}/${dir}
-    else
-      echo "${ASSET_DIR}/${dir} exists"
-    fi
-  done
+function run {
+  init
+  populate_template '__MASTER_HOSTNAME__' "$MASTER_HOSTNAME" "$TEMPLATE" "$TEMPLATE_TMP"
+  populate_template '__KUBE_ETCD_SIGNER_SERVER__' "$IMAGE" "$TEMPLATE_TMP" "$ASSET_DIR/manifests/kube-etcd-cert-signer.yaml"
 }
-
-
-download_template() {
-  curl -s https://raw.githubusercontent.com/hexfusion/openshift-recovery/master/manifests/kube-etcd-cert-signer.yaml.template -o $ASSET_DIR/templates/kube-etcd-cert-signer.yaml.template
-}
-
-populate_template() {
-  echo "Populating template.."
-  TEMPLATE=$ASSET_DIR/templates/kube-etcd-cert-signer.yaml.template
-
-  cp $TEMPLATE $ASSET_DIR/tmp
-
-  FIND='__MASTER_HOSTNAME__'
-  REPLACE="${MASTER_HOSTNAME}"
-  sed -i "s@${FIND}@${REPLACE}@" $ASSET_DIR/tmp/kube-etcd-cert-signer.yaml.template
-}
-
-copy_manifest() {
-  echo "Tokenized template now ready: $ASSET_DIR/manifests/kube-etcd-cert-signer.yaml"
-  mv $ASSET_DIR/tmp/kube-etcd-cert-signer.yaml.template $ASSET_DIR/manifests/kube-etcd-cert-signer.yaml
-}
-
-init
-download_template
-populate_template
-copy_manifest

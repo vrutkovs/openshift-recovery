@@ -1,3 +1,5 @@
+#!/usr/bin/env bash
+
 init() {
   ASSET_BIN=${ASSET_DIR}/bin
   if [ ! -d "$ASSET_BIN" ]; then
@@ -6,18 +8,16 @@ init() {
       /usr/bin/mkdir -p ${ASSET_DIR}/${dir}
     done
   fi
-  dl_etcdctl $ETCD_VERSION
 }
 
 # download and test etcdctl from upstream release assets
 dl_etcdctl() {
-  ETCD_VER=$1
   GOOGLE_URL=https://storage.googleapis.com/etcd
   DOWNLOAD_URL=${GOOGLE_URL}
 
   echo "Downloading etcdctl binary.."
-  curl -s -L ${DOWNLOAD_URL}/${ETCD_VER}/etcd-${ETCD_VER}-linux-amd64.tar.gz -o $ASSET_DIR/tmp/etcd-${ETCD_VER}-linux-amd64.tar.gz \
-    && tar -xzf $ASSET_DIR/tmp/etcd-${ETCD_VER}-linux-amd64.tar.gz -C $ASSET_DIR/shared --strip-components=1 \
+  curl -s -L ${DOWNLOAD_URL}/${ETCD_VERSION}/etcd-${ETCD_VERSION}-linux-amd64.tar.gz -o $ASSET_DIR/tmp/etcd-${ETCD_VERSION}-linux-amd64.tar.gz \
+    && tar -xzf $ASSET_DIR/tmp/etcd-${ETCD_VERSION}-linux-amd64.tar.gz -C $ASSET_DIR/shared --strip-components=1 \
     && mv $ASSET_DIR/shared/etcdctl $ASSET_DIR/bin \
     && rm $ASSET_DIR/shared/etcd \
     && ETCDCTL_API=3 $ASSET_DIR/bin/etcdctl version
@@ -226,23 +226,26 @@ download_cert_recover_template() {
 }
 
 populate_template() {
-  echo "Populating template.."
+  FIND="$1"
+  REPLACE="$2"
+  TEMPLATE="$3"
+  OUT="$4"
 
-  DISCOVERY_DOMAIN=$(grep -oP '(?<=discovery-srv=).*[^"]' $ASSET_DIR/backup/etcd-member.yaml )
-  CLUSTER_NAME=$(echo ${DISCOVERY_DOMAIN} | grep -oP '^.*?(?=\.)')
-  TEMPLATE=$ASSET_DIR/templates/etcd-generate-certs.yaml.template
+  echo "Populating template $TEMPLATE"
 
-  if [ -z "$DISCOVERY_DOMAIN" ]; then
-    echo "Discovery domain can not be extracted from $ASSET_DIR/backup/etcd-member.yaml"
+  if [ -z "$FIND" ] || [ -z "$REPLACE" ] || [ -z "$TEMPLATE" ] [ -z "$OUT" ]; then
+    echo "populate_template requires 4 arguments FIND, REPLACE, TEMPLATE and OUT"
+    exit 1
+  elif [ ! -f "$TEMPLATE" ]; then
+    echo "template $TEMPLATE does not exist"
     exit 1
   fi
 
-  cp $TEMPLATE $ASSET_DIR/tmp
+  TMP_FILE=$(date +"%m-%d-%Y-%H%M")
+  cp $TEMPLATE "$ASSET_DIR/tmp/${TMP_FILE}"
 
-  FIND='__ETCD_DISCOVERY_DOMAIN__'
-  REPLACE="${DISCOVERY_DOMAIN}"
-  sed -i "s@${FIND}@${REPLACE}@" $ASSET_DIR/tmp/etcd-generate-certs.yaml.template
-  mv $ASSET_DIR/tmp/etcd-generate-certs.yaml.template /etc/kubernetes/manifests-stopped/etcd-generate-certs.yaml
+  sed -i "s@${FIND}@${REPLACE}@" "$ASSET_DIR/tmp/${TMP_FILE}"
+  mv "$ASSET_DIR/tmp/${TMP_FILE}" "$OUT"
 }
 
 start_cert_recover() {
