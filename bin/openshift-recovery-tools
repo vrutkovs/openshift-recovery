@@ -242,7 +242,7 @@ populate_template() {
   TMP_FILE=$(date +"%m-%d-%Y-%H%M")
   cp $TEMPLATE "$ASSET_DIR/tmp/${TMP_FILE}"
 
-  sed -i "s@${FIND}@${REPLACE}@" "$ASSET_DIR/tmp/${TMP_FILE}"
+  sed -i "s;${FIND};${REPLACE};" "$ASSET_DIR/tmp/${TMP_FILE}"
   mv "$ASSET_DIR/tmp/${TMP_FILE}" "$OUT"
 }
 
