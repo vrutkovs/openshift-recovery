@@ -220,7 +220,7 @@ start_etcd() {
 }
 
 download_cert_recover_template() {
-  curl -s https://raw.githubusercontent.com/hexfusion/openshift-recovery/master/manifests/etcd-generate-certs.yaml.template -o $ASSET_DIR/templates/etcd-generate-certs.yaml.template
+  curl -s https://raw.githubusercontent.com/vrutkovs/openshift-recovery/unify-fixes/manifests/etcd-generate-certs.yaml.template -o $ASSET_DIR/templates/etcd-generate-certs.yaml.template
 }
 
 populate_template() {
