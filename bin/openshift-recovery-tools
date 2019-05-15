@@ -43,7 +43,7 @@ backup_etcd_client_certs() {
     done
    fi
 }
- 
+
 # backup current etcd-member pod manifest
 backup_manifest() {
   if [ -e "${ASSET_DIR}/backup/etcd-member.yaml" ]; then
@@ -126,18 +126,18 @@ restore_snapshot() {
     echo "Snapshot file not found, restore failed: $SNAPSHOT_FILE."
     exit 1
   fi
-  
+
   sleep 2
-  
+
   echo "Restoring etcd member $ETCD_NAME from snapshot.."
-    
+
   env ETCDCTL_API=3 ${ETCDCTL} snapshot restore $SNAPSHOT_FILE \
     --name $ETCD_NAME \
     --initial-cluster ${ETCD_NAME}=https://${ETCD_DNS_NAME}:2380 \
     --initial-cluster-token etcd-cluster-1 \
     --skip-hash-check=true \
     --initial-advertise-peer-urls https://${ETCD_IPV4_ADDRESS}:2380 \
-    --data-dir $ETCD_DATA_DIR  
+    --data-dir $ETCD_DATA_DIR
 }
 
 patch_manifest() {
@@ -177,13 +177,12 @@ EOF
 
 # download and test etcdctl from upstream release assets
 dl_etcdctl() {
-  ETCD_VER=$1
   GOOGLE_URL=https://storage.googleapis.com/etcd
   DOWNLOAD_URL=${GOOGLE_URL}
 
   echo "Downloading etcdctl binary.."
-  curl -s -L ${DOWNLOAD_URL}/${ETCD_VER}/etcd-${ETCD_VER}-linux-amd64.tar.gz -o $ASSET_DIR/tmp/etcd-${ETCD_VER}-linux-amd64.tar.gz \
-    && tar -xzf $ASSET_DIR/tmp/etcd-${ETCD_VER}-linux-amd64.tar.gz -C $ASSET_DIR/shared --strip-components=1 \
+  curl -s -L ${DOWNLOAD_URL}/${ETCD_VERSION}/etcd-${ETCD_VERSION}-linux-amd64.tar.gz -o $ASSET_DIR/tmp/etcd-${ETCD_VERSION}-linux-amd64.tar.gz \
+    && tar -xzf $ASSET_DIR/tmp/etcd-${ETCD_VERSION}-linux-amd64.tar.gz -C $ASSET_DIR/shared --strip-components=1 \
     && mv $ASSET_DIR/shared/etcdctl $ASSET_DIR/bin \
     && rm $ASSET_DIR/shared/etcd \
     && ETCDCTL_API=3 $ASSET_DIR/bin/etcdctl version
